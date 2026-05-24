@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+<title>Comparador PRO</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    background:#f5f5f5;
+    padding:20px;
+}
+
+h1{
+    text-align:center;
+}
+
+.buscador{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+}
+
+input{
+    width:400px;
+    padding:12px;
+    border-radius:10px;
+    border:1px solid #ccc;
+    font-size:16px;
+}
+
+button{
+    padding:12px 20px;
+    border:none;
+    border-radius:10px;
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+    transition:0.2s;
+    font-weight:bold;
+}
+
+button:hover{
+    opacity:0.9;
+}
+
+button:disabled{
+    opacity:0.6;
+    cursor:not-allowed;
+}
+
+.filtros{
+    display:flex;
+    flex-wrap:wrap;
+    gap:15px;
+    margin-bottom:25px;
+    justify-content:center;
+}
+
+select{
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ccc;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:
+        repeat(auto-fill,minmax(320px,1fr));
+    gap:20px;
+}
+
+.card{
+    background:white;
+    border-radius:15px;
+    padding:15px;
+    box-shadow:0 2px 10px rgba(0,0,0,.1);
+    transition:0.2s;
+}
+
+.card:hover{
+    transform:translateY(-3px);
+}
+
+.card img{
+    width:100%;
+    height:220px;
+    object-fit:contain;
+}
+
+.precio{
+    color:green;
+    font-size:38px;
+    font-weight:bold;
+    margin-top:10px;
+}
+
+.super{
+    color:#666;
+    margin-top:5px;
+    font-size:20px;
+}
+
+.fecha{
+    color:#888;
+    font-size:12px;
+    margin-top:5px;
+}
+
+a{
+    display:inline-block;
+    margin-top:10px;
+    text-decoration:none;
+    color:#2563eb;
+    font-weight:bold;
+}
+
+.loading{
+    text-align:center;
+    font-size:22px;
+    margin-top:30px;
+    width:100%;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Comparador PRO</h1>
+
+<div class="buscador">
+
+    <input
+        type="text"
+        id="producto"
+        placeholder="Buscar producto"
+        autocomplete="off"
+    >
+
+    <button id="btnBuscar" onclick="buscar()">
+        Buscar
+    </button>
+
+    <button onclick="exportarExcel()">
+        Exportar Excel
+    </button>
+
+</div>
+
+<div class="filtros">
+
+    <select id="ordenPrecio" onchange="aplicarFiltros()">
+
+        <option value="asc">
+            Precio menor a mayor
+        </option>
+
+        <option value="desc">
+            Precio mayor a menor
+        </option>
+
+    </select>
+
+    <select id="filtroSuper" onchange="aplicarFiltros()">
+
+        <option value="">
+            Todos los supermercados
+        </option>
+
+    </select>
+
+</div>
+
+<div class="grid" id="resultados"></div>
+
+<script>
+
+let productosGlobal = [];
+
+const inputProducto =
+    document.getElementById("producto");
+
+const btnBuscar =
+    document.getElementById("btnBuscar");
+
+
+// ====================================
+// LIMPIAR INPUT AL RECARGAR
+// + AUTOFOCUS
+// ====================================
+window.onload = () => {
+
+    inputProducto.value = "";
+
+    inputProducto.focus();
+
+};
+
+
+// ====================================
+// BUSCAR CON ENTER
+// ====================================
+inputProducto.addEventListener(
+    "keypress",
+    function(event){
+
+        if(event.key === "Enter"){
+
+            buscar();
+
+        }
+
+    }
+);
+
+
+// ====================================
+// FORMATO MONEDA ARGENTINA
+// ====================================
+function formatearPrecio(precio){
+
+    return new Intl.NumberFormat(
+        "es-AR",
+        {
+            style: "currency",
+            currency: "ARS"
+        }
+    ).format(precio);
+
+}
+
+
+// ====================================
+// BUSCAR PRODUCTOS
+// ====================================
+async function buscar(){
+
+    const producto =
+        inputProducto.value.trim();
+
+    if(!producto) return;
+
+    const contenedor =
+        document.getElementById("resultados");
+
+    // LOADING
+    btnBuscar.innerText =
+        "Buscando...";
+
+    btnBuscar.disabled = true;
+
+    contenedor.innerHTML =
+        `<div class="loading">
+            Buscando productos...
+        </div>`;
+
+    try {
+
+        const res =
+            await fetch(
+                `/buscar?q=${encodeURIComponent(producto)}`
+            );
+
+        productosGlobal =
+            await res.json();
+
+        cargarFiltros();
+
+        aplicarFiltros();
+
+    } catch(err){
+
+        console.error(err);
+
+        contenedor.innerHTML =
+            `<div class="loading">
+                Error buscando productos
+            </div>`;
+
+    } finally {
+
+        btnBuscar.innerText =
+            "Buscar";
+
+        btnBuscar.disabled = false;
+
+    }
+}
+
+
+// ====================================
+// CARGAR FILTROS
+// ====================================
+function cargarFiltros(){
+
+    const superSelect =
+        document.getElementById("filtroSuper");
+
+    const supers = [
+        ...new Set(
+            productosGlobal.map(
+                p => p.supermercado
+            )
+        )
+    ];
+
+    superSelect.innerHTML =
+        `<option value="">
+            Todos los supermercados
+        </option>`;
+
+    supers.forEach(s => {
+
+        superSelect.innerHTML += `
+            <option value="${s}">
+                ${s}
+            </option>
+        `;
+    });
+}
+
+
+// ====================================
+// APLICAR FILTROS
+// ====================================
+function aplicarFiltros(){
+
+    const orden =
+        document.getElementById("ordenPrecio").value;
+
+    const superFiltro =
+        document.getElementById("filtroSuper").value;
+
+    let productos =
+        [...productosGlobal];
+
+    if(superFiltro){
+
+        productos = productos.filter(p =>
+            p.supermercado === superFiltro
+        );
+    }
+
+    productos.sort((a, b) => {
+
+        if(orden === "asc"){
+            return a.precio - b.precio;
+        }
+
+        return b.precio - a.precio;
+    });
+
+    renderizar(productos);
+}
+
+
+// ====================================
+// RENDERIZAR PRODUCTOS
+// ====================================
+function renderizar(data){
+
+    const contenedor =
+        document.getElementById("resultados");
+
+    contenedor.innerHTML = "";
+
+    if(data.length === 0){
+
+        contenedor.innerHTML =
+            `<div class="loading">
+                No hay resultados
+            </div>`;
+
+        return;
+    }
+
+    data.forEach(item => {
+
+        const fecha =
+            new Date(item.fecha)
+            .toLocaleString();
+
+        // CONVERTIR PRECIO A NUMBER
+        const precioNumero =
+            Number(
+                String(item.precio)
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+
+        contenedor.innerHTML += `
+
+            <div class="card">
+
+                <img src="${item.imagen}">
+
+                <h3>${item.nombre}</h3>
+
+                <div class="precio">
+                    ${formatearPrecio(precioNumero)}
+                </div>
+
+                <div class="super">
+                    ${item.supermercado}
+                </div>
+
+                <div class="fecha">
+                    ${fecha}
+                </div>
+
+                <a
+                    href="${item.link}"
+                    target="_blank"
+                >
+                    Ver producto
+                </a>
+
+            </div>
+        `;
+    });
+}
+
+
+// ====================================
+// EXPORTAR EXCEL
+// ====================================
+function exportarExcel(){
+
+    window.open(
+        "/exportar-excel",
+        "_blank"
+    );
+}
+
+</script>
+
+</body>
+</html>
