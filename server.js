@@ -118,16 +118,129 @@ function productoValido(prod, query) {
     // =========================
     // PRECIO
     // =========================
-    const precio =
-        Number(prod.precio);
+const precioLista =
+    Number(
+        offer.ListPrice ||
+        offer.Price ||
+        0
+    );
 
+if (
+    !precioLista ||
+    precioLista <= 0
+) {
+    return;
+}
+
+let precioFinal =
+    precioLista;
+
+let promoTexto = "";
+
+// ====================================
+// PROMOS SOLO PARA CARREFOUR
+// ====================================
+if (superData.nombre === "Carrefour") {
+
+    const promociones = [
+
+        ...(offer.PromotionTeasers || []),
+
+        ...(offer.Teasers || [])
+
+    ];
+
+    promoTexto =
+        promociones
+            .map(p =>
+                p.Name ||
+                p["<Name>k__BackingField"] ||
+                ""
+            )
+            .join(" | ");
+
+    // 3x2
     if (
-        !precio ||
-        isNaN(precio) ||
-        precio <= 0
+        /3\s*x\s*2/i.test(promoTexto)
     ) {
-        return false;
+
+        precioFinal =
+            +(precioLista * 2 / 3)
+            .toFixed(2);
     }
+
+    // 4x2
+    else if (
+        /4\s*x\s*2/i.test(promoTexto)
+    ) {
+
+        precioFinal =
+            +(precioLista / 2)
+            .toFixed(2);
+    }
+
+    // 2x1
+    else if (
+        /2\s*x\s*1/i.test(promoTexto)
+    ) {
+
+        precioFinal =
+            +(precioLista / 2)
+            .toFixed(2);
+    }
+
+    // segunda unidad al 70%
+    else if (
+        /70\s*%/i.test(promoTexto)
+    ) {
+
+        precioFinal =
+            +(
+                (
+                    precioLista +
+                    precioLista * 0.30
+                ) / 2
+            ).toFixed(2);
+    }
+
+    // segunda unidad al 80%
+    else if (
+        /80\s*%/i.test(promoTexto)
+    ) {
+
+        precioFinal =
+            +(
+                (
+                    precioLista +
+                    precioLista * 0.20
+                ) / 2
+            ).toFixed(2);
+    }
+
+    // xx % OFF
+    else {
+
+        const match =
+            promoTexto.match(
+                /(\d+)\s*%\s*off/i
+            );
+
+        if (match) {
+
+            const descuento =
+                Number(match[1]);
+
+            precioFinal =
+                +(
+                    precioLista *
+                    (
+                        1 -
+                        descuento / 100
+                    )
+                ).toFixed(2);
+        }
+    }
+}
 
     // =========================
     // LINK
@@ -305,7 +418,11 @@ async function buscarVTEX(superData, producto) {
                     nombre:
                         prod.productName,
 
-                    precio,
+                    precio: precioFinal,
+
+                    precioLista,
+
+                    promo: promoTexto,
 
                     stock,
 
