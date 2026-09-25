@@ -100,6 +100,31 @@ select{
     margin-top:10px;
 }
 
+    .precio-lista{
+    color:#888;
+    text-decoration:line-through;
+    font-size:20px;
+    margin-top:5px;
+}
+
+.promo{
+    background:#dc2626;
+    color:white;
+    display:inline-block;
+    padding:5px 10px;
+    border-radius:8px;
+    margin-top:8px;
+    font-size:14px;
+    font-weight:bold;
+}
+
+.ahorro{
+    color:#16a34a;
+    font-weight:bold;
+    margin-top:8px;
+    font-size:15px;
+}
+
 .super{
     color:#666;
     margin-top:5px;
@@ -387,13 +412,35 @@ function renderizar(data){
             new Date(item.fecha)
             .toLocaleString();
 
-        // CONVERTIR PRECIO A NUMBER
-        const precioNumero =
+        const precio =
+            Number(item.precio || 0);
+
+        const precioLista =
             Number(
-                String(item.precio)
-                .replace(/\./g, "")
-                .replace(",", ".")
+                item.precioLista ||
+                item.precio ||
+                0
             );
+
+        const tienePromo =
+            item.promo &&
+            item.promo.trim() !== "";
+
+        let ahorro = 0;
+
+        if(
+            precioLista > precio &&
+            precio > 0
+        ){
+            ahorro =
+                Math.round(
+                    (
+                        (precioLista - precio)
+                        /
+                        precioLista
+                    ) * 100
+                );
+        }
 
         contenedor.innerHTML += `
 
@@ -404,8 +451,44 @@ function renderizar(data){
                 <h3>${item.nombre}</h3>
 
                 <div class="precio">
-                    ${formatearPrecio(precioNumero)}
+                    ${formatearPrecio(precio)}
                 </div>
+
+                ${
+                    precioLista > precio
+                    ?
+                    `
+                    <div class="precio-lista">
+                        ${formatearPrecio(precioLista)}
+                    </div>
+                    `
+                    :
+                    ""
+                }
+
+                ${
+                    tienePromo
+                    ?
+                    `
+                    <div class="promo">
+                        ${item.promo}
+                    </div>
+                    `
+                    :
+                    ""
+                }
+
+                ${
+                    ahorro > 0
+                    ?
+                    `
+                    <div class="ahorro">
+                        Ahorrás ${ahorro}%
+                    </div>
+                    `
+                    :
+                    ""
+                }
 
                 <div class="super">
                     ${item.supermercado}
@@ -426,7 +509,6 @@ function renderizar(data){
         `;
     });
 }
-
 
 // ====================================
 // EXPORTAR EXCEL
